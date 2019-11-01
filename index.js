@@ -300,7 +300,7 @@ process.stdin.on('keyup', (str, key) => {
 });
 
 readline.cursorTo(process.stdout, 1, 20);
-process.stdout.write("[w s a d] or [↓ ↑ ← →] to move. [b] to drop bomb")
+process.stdout.write("[w s a d] or [↓ ↑ ← →] to move. [b] to drop bomb. ctrl+c to quit")
 readline.cursorTo(process.stdout, 1, 21);
 process.stdout.write("there is nothing here yet, so you can't do much")
 
