@@ -6,6 +6,7 @@
 // index.js
 const process = require("process")
 const readline = require("readline")
+const os = require("os");
 
 const testMap = [
 'XXXXXXXXXXXXXXXXXXX',
@@ -84,7 +85,7 @@ const colorTypes = {
 }
 
 const elements = {
-    'X': colorTypes.reset + colorTypes.dim + colorTypes.fgWhite + "▓" + colorTypes.reset,
+    'X': colorTypes.reset + colorTypes.dim + colorTypes.bgLightGray + colorTypes.fgWhite + "▓" + colorTypes.reset,
     '.': colorTypes.reset + colorTypes.dim + colorTypes.fgLightWhite + "░" + colorTypes.reset,
     ' ': colorTypes.reset + colorTypes.dim + colorTypes.fgLightWhite + " " + colorTypes.reset,
     'bomb': t => (colorTypes.reset + colorTypes.fgRed + t + colorTypes.reset),
@@ -246,7 +247,9 @@ class Game {
 
             // player
             readline.cursorTo(process.stdout, player.x, player.y);
-            process.stdout.write("A")
+            let hostname = os.hostname();
+            process.stdout.write(hostname.substring(0,1))
+            player.isMoving = false;
 
         }, 125)
 
@@ -268,19 +271,31 @@ process.stdin.on('keypress', (str, key) => {
     switch(key.name){
         case 'up':
         case 'w':
-            if(ld.mapInstance[player.x][player.y-1] !== 'X' && ld.mapInstance[player.x][player.y-1] !== '.') player.y -= 1; 
+            if(!player.isMoving && ld.mapInstance[player.x][player.y-1] !== 'X' && ld.mapInstance[player.x][player.y-1] !== '.'){
+                player.y -= 1; 
+                player.isMoving = true;
+            }
         break;
         case 'down':
         case 's':
-            if(ld.mapInstance[player.x][player.y+1] !== 'X' && ld.mapInstance[player.x][player.y+1] !== '.') player.y += 1;
+            if(!player.isMoving && ld.mapInstance[player.x][player.y+1] !== 'X' && ld.mapInstance[player.x][player.y+1] !== '.'){
+                player.y += 1;
+                player.isMoving = true;
+            }
         break;
         case 'left':
         case 'a':
-            if(ld.mapInstance[player.x-1][player.y] !== 'X' && ld.mapInstance[player.x-1][player.y] !== '.') player.x -= 1;
+            if(!player.isMoving && ld.mapInstance[player.x-1][player.y] !== 'X' && ld.mapInstance[player.x-1][player.y] !== '.'){
+                player.x -= 1;
+                player.isMoving = true;
+            }
         break;
         case 'right':
         case 'd':
-            if(ld.mapInstance[player.x+1][player.y] !== 'X' && ld.mapInstance[player.x+1][player.y] !== '.') player.x += 1;
+            if(!player.isMoving && ld.mapInstance[player.x+1][player.y] !== 'X' && ld.mapInstance[player.x+1][player.y] !== '.'){
+                player.x += 1;
+                player.isMoving = true;
+            }
         break;
         case 'b':
             objects.push({
