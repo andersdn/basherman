@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 // http://panmental.de/symbols/info.htm
 // http://jsfiddle.net/sindresorhus/2eLtsbey/embedded/result/
 // const cliSpinners = require('cli-spinners');
