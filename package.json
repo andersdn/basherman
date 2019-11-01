@@ -1,0 +1,20 @@
+{
+  "name": "basherman",
+  "version": "0.0.1",
+  "description": "basherman",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+  },
+  "bin": {
+    "basherman": "./index.js",
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andersdn/basherman"
+  },
+  "author": "https://github.com/andersdn",
+  "license": "ISC",
+  "dependencies": {
+  }
+}
