@@ -170,6 +170,13 @@ class Game {
                     } catch(e){}
                 }
 
+                toDelete.forEach(td => {
+                    if(player.x === td.x && player.y === td.y){
+                        console.clear();
+                        console.log('Tech demo with no other players and you manage to die? seriously dude?');
+                        process.exit();
+                    }
+                })
 
                 if(o.ticks === 35){
                     toDelete.forEach(td => {
@@ -206,7 +213,7 @@ class Game {
     start() {
 
         
-        //console.clear();
+        console.clear();
         process.stdout.write("\x1B[?25l")
         
         
@@ -254,20 +261,25 @@ readline.emitKeypressEvents(process.stdin);
 process.stdin.setRawMode(true);
 process.stdin.on('keypress', (str, key) => {
   if (key.ctrl && key.name === 'c') {
+    console.clear();
     process.exit();
   } else {
     player.dir = key.name;
     switch(key.name){
         case 'up':
+        case 'w':
             if(ld.mapInstance[player.x][player.y-1] !== 'X' && ld.mapInstance[player.x][player.y-1] !== '.') player.y -= 1; 
         break;
         case 'down':
+        case 's':
             if(ld.mapInstance[player.x][player.y+1] !== 'X' && ld.mapInstance[player.x][player.y+1] !== '.') player.y += 1;
         break;
         case 'left':
+        case 'a':
             if(ld.mapInstance[player.x-1][player.y] !== 'X' && ld.mapInstance[player.x-1][player.y] !== '.') player.x -= 1;
         break;
         case 'right':
+        case 'd':
             if(ld.mapInstance[player.x+1][player.y] !== 'X' && ld.mapInstance[player.x+1][player.y] !== '.') player.x += 1;
         break;
         case 'b':
@@ -286,4 +298,9 @@ process.stdin.on('keypress', (str, key) => {
 process.stdin.on('keyup', (str, key) => {
     player.dir = false;
 });
-console.log('Press any key...');
+
+readline.cursorTo(process.stdout, 1, 20);
+process.stdout.write("[w s a d] or [↓ ↑ ← →] to move. [b] to drop bomb")
+readline.cursorTo(process.stdout, 1, 21);
+process.stdout.write("there is nothing here yet, so you can't do much")
+
