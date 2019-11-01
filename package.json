@@ -4,10 +4,10 @@
   "description": "basherman",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node index.js"
   },
   "bin": {
-    "basherman": "./index.js",
+    "basherman": "./index.js"
   },
   "repository": {
     "type": "git",
