@@ -7,10 +7,27 @@
 const process = require("process")
 const readline = require("readline")
 const os = require("os");
+const ip = require('ip');
+const evilscan = require('evilscan');
+const WebSocket = require('ws');
+const inquirer      = require('inquirer');
+const figlet = require('figlet');
+const uuidv1 = require('uuid/v1');
+
+const connections = {};
+
+const theLogo = `
+
+┌┐ ┌─┐┌─┐┬ ┬┌─┐┬─┐┌┬┐┌─┐┌┐┌
+├┴┐├─┤└─┐├─┤├┤ ├┬┘│││├─┤│││
+└─┘┴ ┴└─┘┴ ┴└─┘┴└─┴ ┴┴ ┴┘└┘
+
+`;
+
 
 const testMap = [
-'XXXXXXXXXXXXXXXXXXX',
-'X   ...........   X',
+'XXXXXXXXXtXXXXXXXXX',
+'X   ..... .....   X',
 'X X.X.X.X.X.X.X.X X',
 'X ............... X',
 'X.X.X.X.X.X.X.X.X.X',
@@ -26,21 +43,25 @@ const testMap = [
 'X.X.X.X.X.X.X.X.X.X',
 'X................ X',
 'X X.X.X.X.X.X.X.X X',
-'X   ...........   X',
-'XXXXXXXXXXXXXXXXXXX'
+'X   ..... .....   X',
+'XXXXXXXXXtXXXXXXXXX'
 ];
 
 const anim = {
     bomb: ["■","□","▪","▫"]
 }
 
+const arrayRand = (arr) => arr[Math.floor(Math.random()*arr.length)];
+
+
 const setCharAt = (str,index,chr)=>{
     if(index > str.length-1) return str;
     return str.substr(0,index) + chr + str.substr(index+1);
 }
 
+const user = {};
+const users = {};
 let objects = [];
-
 
 const colorTypes = {
     reset: "\x1b[0m",
@@ -84,10 +105,19 @@ const colorTypes = {
     bgLightWhite: "\x1b[107m",
 }
 
+let userColors = [
+    'bgRed',
+    'bgYellow',
+    'bgBlue',
+    'bgMagenta',
+    'bgCyan'
+]
+
 const elements = {
     'X': colorTypes.reset + colorTypes.dim + colorTypes.bgLightGray + colorTypes.fgWhite + "▓" + colorTypes.reset,
     '.': colorTypes.reset + colorTypes.dim + colorTypes.fgLightWhite + "░" + colorTypes.reset,
     ' ': colorTypes.reset + colorTypes.dim + colorTypes.fgLightWhite + " " + colorTypes.reset,
+    't': colorTypes.reset + colorTypes.dim + colorTypes.fgLightGreen + "▞" + colorTypes.reset,
     'bomb': t => (colorTypes.reset + colorTypes.fgRed + t + colorTypes.reset),
     'fire': colorTypes.reset + colorTypes.fgRed + "◇" + colorTypes.reset,
 }
@@ -108,8 +138,8 @@ const drawAt = (x,y,element)=>{
 }
 
 class Game {
-    constructor(size) {
-        this.size = size
+    constructor() {
+        
         this.cursor = 0
         this.timer = null
         this.mapInstance = [...testMap].map(e => e.split(''));
@@ -173,9 +203,10 @@ class Game {
 
                 toDelete.forEach(td => {
                     if(player.x === td.x && player.y === td.y){
-                        console.clear();
-                        console.log('Tech demo with no other players and you manage to die? seriously dude?');
-                        process.exit();
+                        // TODO - use users no player instance
+                        //console.clear();
+                        //console.log('Tech demo with no other players and you manage to die? seriously dude?');
+                        //process.exit();
                     }
                 })
 
@@ -191,6 +222,7 @@ class Game {
                 }
                 //process.exit();
     /*
+
                 for (var i = -2; i <= 2; i++) {
                     // todo: stop fire when we get to a wall
                     drawAt(o.x+i,o.y,elements.fire);    
@@ -211,12 +243,93 @@ class Game {
             }
         }
     }
+    setKeyEvents(){
+        readline.emitKeypressEvents(process.stdin);
+        process.stdin.setRawMode(true);
+        process.stdin.resume();
+
+        process.stdin.on('keypress', (str, key) => {
+          if (key.ctrl && key.name === 'c') {
+            console.clear();
+            process.exit();
+          } else {
+            if(ld.isActive){
+                player.dir = key.name;
+                switch(key.name){
+                    case 'up':
+                    case 'w':
+                        if(!player.isMoving && ld.mapInstance[player.x][player.y-1] !== 'X'){
+                            if(ld.mapInstance[player.x][player.y-1] !== '.'){
+                                player.y -= 1; 
+                                player.isMoving = true;
+                            }
+                        }
+                    break;
+                    case 'down':
+                    case 's':
+                        if(!player.isMoving && ld.mapInstance[player.x][player.y+1] !== 'X'){
+                            if(ld.mapInstance[player.x][player.y+1] !== '.'){
+                                player.y += 1;
+                                player.isMoving = true;
+                            }
+                        }
+                    break;
+                    case 'left':
+                    case 'a':
+                        if(!player.isMoving && ld.mapInstance[player.x-1][player.y] !== 'X'){
+                            if(ld.mapInstance[player.x-1][player.y] === 'p'){
+                                player.x = ld.mapInstance[0].length - 1 - player.x;
+                                player.isMoving = true;
+                            } else if(ld.mapInstance[player.x-1][player.y] !== '.'){
+                                player.x -= 1;
+                                player.isMoving = true;
+                            }
+
+                        }
+                    break;
+                    case 'right':
+                    case 'd':
+                        if(!player.isMoving && ld.mapInstance[player.x+1][player.y] !== 'X'){
+                            if(ld.mapInstance[player.x+1][player.y] !== '.'){
+                                player.x += 1;
+                                player.isMoving = true;
+                            }
+                        }
+                    break;
+                    case 'b':
+                        objects.push({
+                            x:player.x,
+                            y:player.y,
+                            type:'bomb'
+                        })
+                    break;
+                }
+                user.player = Object.assign(user.player || {}, player);
+                if(!connections.wss){                    
+                    // no server - assume client
+                    connections.ws.send(JSON.stringify({action:'user',user}));
+                } else {
+                    // i am the server i guess?
+                    users[user.id] = user;
+                }
+                
+            }
+
+          }
+        });
+
+
+        process.stdin.on('keyup', (str, key) => {
+            if(ld.isActive) player.dir = false;
+        });
+    }
     start() {
 
         
         console.clear();
         process.stdout.write("\x1B[?25l")
         
+        this.isActive = true;
         
         this.timer = setInterval(() => {
 
@@ -243,13 +356,34 @@ class Game {
             // objects
             objects.forEach((o,i) => {
                 this.parseObject(o);
-            })
+            });
 
             // player
-            readline.cursorTo(process.stdout, player.x, player.y);
-            let hostname = os.hostname();
-            process.stdout.write(hostname.substring(0,1))
-            player.isMoving = false;
+            Object.keys(users).forEach(u => {
+                if(!users[u].player){
+                    console.log('missing [player');
+                    console.log(users[u]);
+                    process.exit();
+                }
+                readline.cursorTo(process.stdout, users[u].player.x, users[u].player.y);
+                process.stdout.write(users[u].avatar)
+                users[u].player.isMoving = false;    
+            });
+
+            // we are the server - update the state and send it out
+            if(connections.wss){
+                connections.wss.clients.forEach(function each(client) {
+                  if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify({
+                        action:'state',
+                        users,
+                        objects,
+                        mapInstance : ld.mapInstance
+                    }));
+                  }
+                });
+            }
+            
 
         }, 125)
 
@@ -257,65 +391,253 @@ class Game {
     }
 }
 
-const ld = new Game(64,64)
-ld.start()
+const ld = new Game()
 
-readline.emitKeypressEvents(process.stdin);
-process.stdin.setRawMode(true);
-process.stdin.on('keypress', (str, key) => {
-  if (key.ctrl && key.name === 'c') {
+const scanForServers = async () => await new Promise((resolve, reject) => {
+    var options = {
+        target:ip.address() + '/24',//'127.0.0.1',
+        port:'4444',
+        status:'O', // Timeout, Refused, Open, Unreachable
+        banner:true
+    };
+    var scanner = new evilscan(options);
+    const servers = [];
+    scanner.on('result',function(data) {
+        servers.push(data);
+        // fired when item is matching options
+    });
+    scanner.on('error',function(err) {
+        reject(err);
+    });
+    scanner.on('done',function() {
+        // finished !
+        let scannedServers = servers.filter(s => s.status === 'open').map(s => {
+            s.label = `Join Server: ${s.ip}`;
+            return s;
+        });
+        resolve(scannedServers);
+    });
+    scanner.run();
+})
+
+const connectToServer = (ip) => {
+
+    const ws = new WebSocket('ws://' + ip + ':4444');
+
+    connections.ws = ws;
+
+    ws.on('open', function open() {
+      ws.send(JSON.stringify({action:'join',user}));
+    });
+
+    ws.on('message', function incoming(message) {
+        try{
+            let messageSent = JSON.parse(message);
+            switch(messageSent.action){
+                case 'state':
+                    Object.keys(messageSent.users).forEach(u => {
+                        users[messageSent.users[u].id] = messageSent.users[u];
+                    });
+                    objects = messageSent.objects;
+                    ld.mapInstance = messageSent.mapInstance
+                break;
+            }
+        } catch(e){
+            console.error(message,'\r\n',e);
+            process.exit();
+        }
+    });
+
+    startGame();
+};
+
+const createServer = ()=> {
+
+    const wss = new WebSocket.Server({
+      port: 4444
+    });
+
+
+
+    connections.wss = wss;
+
+    wss.on('connection', function connection(ws) {
+      console.log('connection: %s', ws);
+      connections.ws = ws;
+      ws.on('message', function incoming(message) {
+        try{
+            let messageSent = JSON.parse(message);
+            switch(messageSent.action){
+                case 'join':
+                case 'user':            
+                    userSent = messageSent.user;
+                    users[userSent.id] = userSent;
+                break;
+                case 'state':
+                    Object.keys(messageSent.users).forEach(u => {
+                        users[u.id] = u;
+                    });
+                    objects = messageSent.objects;
+                break;
+            }
+        } catch(e){
+            console.error(message,'\r\n',e);
+            process.exit();
+        }
+      });
+      ws.send('{}');
+    });
+
+    startGame();
+}
+
+const parseServer = (server) => {
+    switch(server){
+        case 'create':
+            createServer();
+        break;
+        case 'find':
+            findServers();
+        break;
+        case 'quit':
+            console.clear();
+            console.log('K THX Bai');
+            process.exit();
+        break;
+        default:
+            connectToServer(server);
+    }
+}
+
+const createUser = (userName) => {
+    user.id = uuidv1();
+    user.player = player;
+    user.userName = userName;
+    user.initial = userName.substring(0,1);
+    user.color = arrayRand(userColors);
+    user.avatar = colorTypes.reset + colorTypes.fgWhite + colorTypes[user.color] + user.initial + colorTypes.reset;
+}
+
+const findServers = async()=>{
+
     console.clear();
-    process.exit();
-  } else {
-    player.dir = key.name;
-    switch(key.name){
-        case 'up':
-        case 'w':
-            if(!player.isMoving && ld.mapInstance[player.x][player.y-1] !== 'X' && ld.mapInstance[player.x][player.y-1] !== '.'){
-                player.y -= 1; 
-                player.isMoving = true;
-            }
-        break;
-        case 'down':
-        case 's':
-            if(!player.isMoving && ld.mapInstance[player.x][player.y+1] !== 'X' && ld.mapInstance[player.x][player.y+1] !== '.'){
-                player.y += 1;
-                player.isMoving = true;
-            }
-        break;
-        case 'left':
-        case 'a':
-            if(!player.isMoving && ld.mapInstance[player.x-1][player.y] !== 'X' && ld.mapInstance[player.x-1][player.y] !== '.'){
-                player.x -= 1;
-                player.isMoving = true;
-            }
-        break;
-        case 'right':
-        case 'd':
-            if(!player.isMoving && ld.mapInstance[player.x+1][player.y] !== 'X' && ld.mapInstance[player.x+1][player.y] !== '.'){
-                player.x += 1;
-                player.isMoving = true;
-            }
-        break;
-        case 'b':
-            objects.push({
-                x:player.x,
-                y:player.y,
-                type:'bomb'
-            })
-        break;
+    console.log(theLogo);
+    console.log(`Hi [${user.avatar}] ${user.userName} - We are just checking for servers on your local network`);
+
+    const foundServers = await scanForServers();
+
+    console.clear();
+    console.log(theLogo);
+
+    // console.log('foundServers','ws://' + foundServers[0].ip + ':4444')
+    let message = 'Please Select or create a server to start';
+    
+    if(foundServers.length){
+        defaultValue = foundServers[0].ip;
+
+        inquirer.prompt(
+            [{
+                type: 'list',
+                name: 'server',
+                message: 'Choose a server to start:',
+                choices: [
+                    ...foundServers.map(s => {return{name:s.label,value:s.ip}}),
+                    {name:'Create Server',value:'create'},
+                    {name:'Search Again',value:'find'},
+                    {name:'Quit',value:'quit'}
+                ],
+                defaultValue
+            }]
+        ).then(function( answer ) {
+            parseServer(answer.server)
+        });
+
+    } else {
+        message + '\n No Servers found on your local network, please create a server to start.'
+
+        inquirer.prompt(
+            [{
+                type: 'list',
+                name: 'server',
+                message: 'No Servers found on your local network, would you like to create a server to start?',
+                choices: [
+                    {name:'Create Server',value:'create'},
+                    {name:'Search Again',value:'find'},
+                    {name:'Quit',value:'quit'}
+                ],
+                defaultValue: 'create'
+            }]
+        ).then(function( answer ) {
+            parseServer(answer.server)
+        });
+
+    }
+}
+
+const setupMenu = async ()=>{
+    
+    console.clear();
+    console.log(theLogo);
+
+    const userName = await inquirer.prompt({
+        type: 'input',
+        name: 'userName',
+        message: "UserName (First Character will be your in game avatar)",
+        default: function() {
+          let hostname = os.hostname();
+          return hostname;
+        },
+        validate: i => (!i.length) ? 'Atleast one character' : true
+    }).then(u => u.userName)
+
+    createUser(userName);
+
+    console.clear();
+    console.log(theLogo);
+    const createOrJoin = await inquirer.prompt({
+            type: 'list',
+            name: 'createOrJoin',
+            message: `Ok [${user.avatar}] ${userName}, lets get you started. Did you want to join or create a server?`,
+            choices: [
+                {name:'Create Server',value:'create'},
+                {name:'Join Server',value:'join'},
+                {name:'Quit',value:'quit'}
+            ],
+            defaultValue: 'create'
+        }
+    ).then(a => a.createOrJoin);
+
+
+    if(createOrJoin !== 'join'){
+        return parseServer(createOrJoin)
     }
 
-  }
-});
+
+    findServers();
 
 
-process.stdin.on('keyup', (str, key) => {
-    player.dir = false;
-});
 
-readline.cursorTo(process.stdout, 1, 20);
-process.stdout.write("[w s a d] or [↓ ↑ ← →] to move. [b] to drop bomb. ctrl+c to quit")
-readline.cursorTo(process.stdout, 1, 21);
-process.stdout.write("there is nothing here yet, so you can't do much")
+}
+
+setupMenu();
+
+
+
+
+const startGame = ()=>{
+
+    
+    ld.start()
+    ld.setKeyEvents();
+
+    readline.cursorTo(process.stdout, 1, 20);
+    process.stdout.write("[w s a d] or [↓ ↑ ← →] to move. [b] to drop bomb. ctrl+c to quit")
+    readline.cursorTo(process.stdout, 1, 21);
+    process.stdout.write("there is nothing here yet, so you can't do much")
+
+
+}
+
+
+
 

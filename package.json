@@ -16,5 +16,11 @@
   "author": "https://github.com/andersdn",
   "license": "ISC",
   "dependencies": {
+    "evilscan": "^1.7.5",
+    "figlet": "^1.2.4",
+    "inquirer": "^7.0.0",
+    "ip": "^1.1.5",
+    "uuid": "^3.3.3",
+    "ws": "^7.2.0"
   }
 }
