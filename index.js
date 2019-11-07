@@ -4,6 +4,9 @@
 // http://jsfiddle.net/sindresorhus/2eLtsbey/embedded/result/
 // const cliSpinners = require('cli-spinners');
 // index.js
+
+// todo - set player x back from
+
 const process = require("process")
 const readline = require("readline")
 const os = require("os");
@@ -13,6 +16,9 @@ const WebSocket = require('ws');
 const inquirer      = require('inquirer');
 const figlet = require('figlet');
 const uuidv1 = require('uuid/v1');
+
+const fs = require('fs');
+const log_file = fs.createWriteStream(__dirname + '/debug.log', {flags : 'w'});
 
 const connections = {};
 
@@ -30,22 +36,53 @@ const testMap = [
 'X   ..... .....   X',
 'X X.X.X.X.X.X.X.X X',
 'X ............... X',
+'X.X.X.X.X.X.X.X.X X',
+'X ...   ...   ... X',
+'X X.X X.X.X.X.X.X X',
+'X.... ............X',
 'X.X.X.X.X.X.X.X.X.X',
 'X.................X',
 'X.X.X.X.X.X.X.X.X.X',
 'X.................X',
-'X.X.X.X.X.X.X.X.X.X',
-'X.................X',
-'X.X.X.X.X.X.X.X.X.X',
-'X.................X',
-'X.X.X.X.X.X.X.X.X.X',
-'X.................X',
-'X.X.X.X.X.X.X.X.X.X',
-'X................ X',
+'X X.X.X.X.X.X.X.X X',
+'X ............... X',
+'X X.X.X.X.X.X.X.X X',
+'X ............... X',
 'X X.X.X.X.X.X.X.X X',
 'X   ..... .....   X',
 'XXXXXXXXXtXXXXXXXXX'
 ];
+const spawnsPoints = [
+    {x:1,y:1},
+    {x:1,y:17},
+    {x:17,y:1},
+    {x:17,y:17},
+]
+
+
+const updateScoreTable = (users)=>{
+
+    readline.cursorTo(process.stdout, 1, 21);
+
+    let heading = '   user      score\n----------- -------';
+    let scoreTable = heading;
+
+    Object.keys(users).forEach(u => {
+        let userToScore = users[u];
+
+        scoreTable = scoreTable + [
+        '\n  ',
+        `${userToScore.avatar} `,
+        `${userToScore.userName}            `.substring(0,10),
+        `  ${userToScore.deaths || 0}`
+        ].join('');
+    
+    });
+
+    process.stdout.write(scoreTable)
+}
+
+
 
 const anim = {
     bomb: ["■","□","▪","▫"]
@@ -128,8 +165,8 @@ const colorize = (color, output)=>{
 
 const player = {
     dir:null,
-    x:1,
-    y:1
+    x:null,
+    y:null
 }
 
 const drawAt = (x,y,element)=>{
@@ -202,12 +239,14 @@ class Game {
                 }
 
                 toDelete.forEach(td => {
-                    if(player.x === td.x && player.y === td.y){
-                        // TODO - use users no player instance
-                        //console.clear();
-                        //console.log('Tech demo with no other players and you manage to die? seriously dude?');
-                        //process.exit();
-                    }
+                    let hasDied = false;
+                    Object.keys(users).forEach(u => {
+                        if(!users[u].ghost && users[u].player.x === td.x && users[u].player.y === td.y){
+                            users[u].deaths = (users[u].deaths || 0) + 1;
+                            users[u].ghost = 20;
+                            // todo: kills
+                        }
+                    })
                 })
 
                 if(o.ticks === 35){
@@ -261,54 +300,62 @@ class Game {
                     player.isMoving = users[user.id].player.isMoving;    
                 }
                 
-                // not just ismoving? where should the source of truth be
+                // not just is moving? where should the source of truth be
 
                 player.dir = key.name;
                 switch(key.name){
                     case 'up':
                     case 'w':
-                        if(!player.isMoving && ld.mapInstance[player.x][player.y-1] !== 'X'){
-                            if(ld.mapInstance[player.x][player.y-1] !== '.'){
-                                player.y -= 1; 
-                                player.isMoving = true;
+                        try{
+                            if(!player.isMoving && ld.mapInstance[player.x][player.y-1] !== 'X'){
+                                if(ld.mapInstance[player.x][player.y-1] !== '.'){
+                                    player.y -= 1; 
+                                    player.isMoving = true;
+                                }
                             }
-                        }
+                        } catch(e){/* todo: array out of bounds */}    
                     break;
                     case 'down':
                     case 's':
-                        if(!player.isMoving && ld.mapInstance[player.x][player.y+1] !== 'X'){
-                            if(ld.mapInstance[player.x][player.y+1] !== '.'){
-                                player.y += 1;
-                                player.isMoving = true;
+                        try{
+                            if(!player.isMoving && ld.mapInstance[player.x][player.y+1] !== 'X'){
+                                if(ld.mapInstance[player.x][player.y+1] !== '.'){
+                                    player.y += 1;
+                                    player.isMoving = true;
+                                }
                             }
-                        }
+                        } catch(e){/* todo: array out of bounds */}
                     break;
                     case 'left':
                     case 'a':
-                        if(!player.isMoving && ld.mapInstance[player.x-1][player.y] !== 'X'){
-                            if(ld.mapInstance[player.x-1][player.y] === 'p'){
-                                player.x = ld.mapInstance[0].length - 1 - player.x;
-                                player.isMoving = true;
-                            } else if(ld.mapInstance[player.x-1][player.y] !== '.'){
-                                player.x -= 1;
-                                player.isMoving = true;
+                        try{
+                            if(!player.isMoving && ld.mapInstance[player.x-1][player.y] !== 'X'){
+                                if(ld.mapInstance[player.x-1][player.y] === 'p'){
+                                    player.x = ld.mapInstance[0].length - 1 - player.x;
+                                    player.isMoving = true;
+                                } else if(ld.mapInstance[player.x-1][player.y] !== '.'){
+                                    player.x -= 1;
+                                    player.isMoving = true;
+                                }
                             }
-
-                        }
+                        } catch(e){/* todo: array out of bounds */}
                     break;
                     case 'right':
                     case 'd':
-                        if(!player.isMoving && ld.mapInstance[player.x+1][player.y] !== 'X'){
-                            if(ld.mapInstance[player.x+1][player.y] !== '.'){
-                                player.x += 1;
-                                player.isMoving = true;
+                        try{
+                            if(!player.isMoving && ld.mapInstance[player.x+1][player.y] !== 'X'){
+                                if(ld.mapInstance[player.x+1][player.y] !== '.'){
+                                    player.x += 1;
+                                    player.isMoving = true;
+                                }
                             }
-                        }
+                        } catch(e){/* todo: array out of bounds */}
                     break;
                     case 'b':
                         let newBomb = {
                             x:player.x,
                             y:player.y,
+                            owner:user.id,
                             type:'bomb'
                         };
                         if(!connections.wss){                    
@@ -320,6 +367,9 @@ class Game {
                         }
                     break;
                 }
+
+
+
                 user.player = Object.assign(user.player || {}, player);
                 if(!connections.wss){                    
                     // no server - assume client
@@ -344,6 +394,10 @@ class Game {
         
         console.clear();
         process.stdout.write("\x1B[?25l")
+
+        if(connections.wss){
+            users[user.id] = user;
+        }
         
         this.isActive = true;
         
@@ -376,13 +430,23 @@ class Game {
 
             // player
             Object.keys(users).forEach(u => {
+
+                if(!users[u].player.x && !users[u].player.y){                   
+                    let sp = spawnsPoints[Object.keys(users).length]
+                    users[u].player.x = sp.x;
+                    users[u].player.y = sp.y;    
+                }
+
                 if(!users[u].player){
-                    console.log('missing [player');
+                    console.log('missing player');
                     console.log(users[u]);
                     process.exit();
                 }
+                if(!!users[u].ghost){
+                    users[u].ghost -= 1; 
+                }
                 readline.cursorTo(process.stdout, users[u].player.x, users[u].player.y);
-                process.stdout.write(users[u].avatar)
+                process.stdout.write(users[u].ghost ? users[u].ghostAvatar : users[u].avatar);
                 users[u].player.isMoving = false;    
             });
 
@@ -399,6 +463,8 @@ class Game {
                   }
                 });
             }
+
+            updateScoreTable(users);
             
 
         }, 125)
@@ -454,8 +520,17 @@ const connectToServer = (ip) => {
                     Object.keys(messageSent.users).forEach(u => {
                         users[messageSent.users[u].id] = messageSent.users[u];
                     });
+
                     objects = messageSent.objects;
                     ld.mapInstance = messageSent.mapInstance
+
+                    // map user back to chosn spawn point if it has no location
+                    if(!player.x && !player.y){
+                        player.x = users[user.id].player.x;
+                        player.y = users[user.id].player.y;
+                    }
+                    
+
                 break;
             }
         } catch(e){
@@ -535,6 +610,7 @@ const createUser = (userName) => {
     user.initial = userName.substring(0,1);
     user.color = arrayRand(userColors);
     user.avatar = colorTypes.reset + colorTypes.fgWhite + colorTypes[user.color] + user.initial + colorTypes.reset;
+    user.ghostAvatar = colorTypes.reset + colorTypes.dim + colorTypes.fgWhite + colorTypes[user.color] + user.initial + colorTypes.reset;
 }
 
 const findServers = async()=>{
@@ -651,8 +727,9 @@ const startGame = ()=>{
 
     readline.cursorTo(process.stdout, 1, 20);
     process.stdout.write("[w s a d] or [↓ ↑ ← →] to move. [b] to drop bomb. ctrl+c to quit")
-    readline.cursorTo(process.stdout, 1, 21);
-    process.stdout.write("there is nothing here yet, so you can't do much")
+
+
+
 
 
 }
