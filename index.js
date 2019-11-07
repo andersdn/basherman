@@ -152,7 +152,7 @@ let userColors = [
 
 const elements = {
     'X': colorTypes.reset + colorTypes.dim + colorTypes.bgLightGray + colorTypes.fgWhite + "▓" + colorTypes.reset,
-    '.': colorTypes.reset + colorTypes.dim + colorTypes.fgLightWhite + "░" + colorTypes.reset,
+    '.': colorTypes.reset + colorTypes.dim + colorTypes.fgLightWhite + "♦" + colorTypes.reset,
     ' ': colorTypes.reset + colorTypes.dim + colorTypes.fgLightWhite + " " + colorTypes.reset,
     't': colorTypes.reset + colorTypes.dim + colorTypes.fgLightGreen + "▞" + colorTypes.reset,
     'bomb': t => (colorTypes.reset + colorTypes.fgRed + t + colorTypes.reset),
@@ -433,8 +433,13 @@ class Game {
 
                 if(!users[u].player.x && !users[u].player.y){                   
                     let sp = spawnsPoints[Object.keys(users).length]
-                    users[u].player.x = sp.x;
-                    users[u].player.y = sp.y;    
+                    if(sp){
+                        users[u].player.x = sp.x;
+                        users[u].player.y = sp.y;        
+                    } else {
+                        // users[u]
+                        // todo - lobby or queue
+                    }         
                 }
 
                 if(!users[u].player){
