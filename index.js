@@ -254,6 +254,15 @@ class Game {
             process.exit();
           } else {
             if(ld.isActive){
+
+                // todo - map user back into own player instance cleaner;
+                if(users[user.id]){
+                    // have we got an instance of users yet?
+                    player.isMoving = users[user.id].player.isMoving;    
+                }
+                
+                // not just ismoving? where should the source of truth be
+
                 player.dir = key.name;
                 switch(key.name){
                     case 'up':
@@ -297,11 +306,18 @@ class Game {
                         }
                     break;
                     case 'b':
-                        objects.push({
+                        let newBomb = {
                             x:player.x,
                             y:player.y,
                             type:'bomb'
-                        })
+                        };
+                        if(!connections.wss){                    
+                            // no server - assume client
+                            connections.ws.send(JSON.stringify({action:'object',object:newBomb}));
+                        } else {
+                            // i am the server i guess?
+                            objects.push(newBomb)
+                        }
                     break;
                 }
                 user.player = Object.assign(user.player || {}, player);
@@ -478,6 +494,9 @@ const createServer = ()=> {
                         users[u.id] = u;
                     });
                     objects = messageSent.objects;
+                break;
+                case 'object':
+                    objects.push(messageSent.object)
                 break;
             }
         } catch(e){
