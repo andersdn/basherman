@@ -245,7 +245,6 @@ class Game {
                 }
 
                 toDelete.forEach(td => {
-                    let hasDied = false;
                     Object.keys(users).forEach(u => {
                         if(!users[u].ghost && users[u].player.x === td.x && users[u].player.y === td.y){
                             users[u].deaths = (users[u].deaths || 0) + 1;
@@ -375,8 +374,9 @@ class Game {
                 }
 
 
-
-                user.player = Object.assign(user.player || {}, player);
+                let myDeaths = user.player.deaths || 0; // save to re-assign
+                let myGhost = user.player.ghost || false; // save to re-assign
+                user.player = Object.assign(user.player || {}, player, {deaths:myDeaths,ghost:myGhost});
                 if(!connections.wss){                    
                     // no server - assume client
                     connections.ws.send(JSON.stringify({action:'user',user}));
