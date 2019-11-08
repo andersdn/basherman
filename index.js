@@ -409,7 +409,7 @@ class Game {
         
         this.timer = setInterval(() => {
 
-            readline.cursorTo(process.stdout, i+1, 0);
+            readline.cursorTo(process.stdout, 0, 0);
             console.log(theLogo);
 
             readline.cursorTo(process.stdout,0,5);
