@@ -22,15 +22,6 @@ const log_file = fs.createWriteStream(__dirname + '/debug.log', {flags : 'w'});
 
 const connections = {};
 
-const theLogo = `
-
-┌┐ ┌─┐┌─┐┬ ┬┌─┐┬─┐┌┬┐┌─┐┌┐┌
-├┴┐├─┤└─┐├─┤├┤ ├┬┘│││├─┤│││
-└─┘┴ ┴└─┘┴ ┴└─┘┴└─┴ ┴┴ ┴┘└┘
-
-`;
-
-
 const testMap = [
 'XXXXXXXXXtXXXXXXXXX',
 'X   ..... .....   X',
@@ -62,24 +53,31 @@ const spawnsPoints = [
 
 const updateScoreTable = (users)=>{
 
-    readline.cursorTo(process.stdout, 1, 21);
-
-    let heading = '   user      score\n----------- -------';
+    readline.cursorTo(process.stdout, 1, 24);
+ 
+ //       '  ╚════════════════════════════════════════════════════════════════════════════╝ ',
+   
+    let heading = '╔═════════╦═══════╗\n ║  user   ║ score ║\n ╠═════════╬═══════╣';
     let scoreTable = heading;
 
     Object.keys(users).forEach(u => {
         let userToScore = users[u];
 
         scoreTable = scoreTable + [
-        '\n  ',
-        `${userToScore.avatar} `,
-        `${userToScore.userName}            `.substring(0,10),
-        `  ${userToScore.deaths || 0}`
+        colorTypes.fgWhite,
+        '\n ',
+        '║',
+        `${userToScore.avatar}`,
+        colorTypes.fgWhite + `:${userToScore.userName}        `.substring(0,8),
+        '║ ',
+        `  ${userToScore.deaths || 0}    `.substring(0,6),
+        '║',
         ].join('');
     
     });
+    scoreTable = scoreTable + '\n ╚═════════╩═══════╝';
 
-    process.stdout.write(scoreTable)
+    process.stdout.write(colorTypes.fgWhite + scoreTable)
 }
 
 
@@ -142,6 +140,13 @@ const colorTypes = {
     bgLightWhite: "\x1b[107m",
 }
 
+const theLogo = [
+colorTypes.fgLightWhite, '\n',
+'┌┐ ┌─┐┌─┐┬ ┬┌─┐┬─┐┌┬┐┌─┐┌┐┌', colorTypes.fgWhite, '\n',
+'├┴┐├─┤└─┐├─┤├┤ ├┬┘│││├─┤│││', colorTypes.fgLightGray, '\n',
+'└─┘┴ ┴└─┘┴ ┴└─┘┴└─┴ ┴┴ ┴┘└┘'
+].join('');
+
 let userColors = [
     'bgRed',
     'bgYellow',
@@ -170,7 +175,8 @@ const player = {
 }
 
 const drawAt = (x,y,element)=>{
-    readline.cursorTo(process.stdout, x,y);
+    // x+1 for the border offset
+    readline.cursorTo(process.stdout, x+1,y+4);
     process.stdout.write(element);
 }
 
@@ -188,7 +194,7 @@ class Game {
             if(!o.ticks) o.ticks = 0;
             o.ticks = o.ticks + 1;
             o.frame = (o.frame >= anim.bomb.length-1) ? 0 : (o.frame + 1);
-            readline.cursorTo(process.stdout, o.x, o.y);
+            readline.cursorTo(process.stdout, o.x + 1, o.y + 4);
             process.stdout.write(elements.bomb(anim.bomb[o.frame]))
             if(o.ticks >= 25 && o.ticks <= 35){
                 let toDelete = [];
@@ -403,13 +409,25 @@ class Game {
         
         this.timer = setInterval(() => {
 
-            readline.cursorTo(process.stdout,0,0)
+            readline.cursorTo(process.stdout, i+1, 0);
+            console.log(theLogo);
+
+            readline.cursorTo(process.stdout,0,5);
             
+            
+            
+            
+
             for (let i = 0; i < this.mapInstance.length; i++) {
                 let row = this.mapInstance[i];
+
+                
+
                 for (let x = 0; x < row.length; x++) {
                     //console.log(i,x,row[x]);
-                    readline.cursorTo(process.stdout, i, x);
+                    
+                    
+                    readline.cursorTo(process.stdout, i+1, x+4);
                     //process.stdout.write(row[x])
                     if(!!elements[row[x]]){
                         process.stdout.write(elements[row[x]])    
@@ -419,6 +437,14 @@ class Game {
                     
                     
                 }
+
+                // if(i === 0){
+                //     readline.cursorTo(process.stdout, 0, i);
+                //     process.stdout.write('╔═══════════════════╗');    
+                // } else if (i === this.mapInstance.length){
+                //     readline.cursorTo(process.stdout, 0, i+1);
+                //     process.stdout.write('╔═══════════════════╗');    
+                // }
                 
             }
 
@@ -450,7 +476,7 @@ class Game {
                 if(!!users[u].ghost){
                     users[u].ghost -= 1; 
                 }
-                readline.cursorTo(process.stdout, users[u].player.x, users[u].player.y);
+                readline.cursorTo(process.stdout, users[u].player.x + 1, users[u].player.y + 4);
                 process.stdout.write(users[u].ghost ? users[u].ghostAvatar : users[u].avatar);
                 users[u].player.isMoving = false;    
             });
@@ -679,6 +705,8 @@ const setupMenu = async ()=>{
     console.clear();
     console.log(theLogo);
 
+    
+
     const userName = await inquirer.prompt({
         type: 'input',
         name: 'userName',
@@ -730,8 +758,8 @@ const startGame = ()=>{
     ld.start()
     ld.setKeyEvents();
 
-    readline.cursorTo(process.stdout, 1, 20);
-    process.stdout.write("[w s a d] or [↓ ↑ ← →] to move. [b] to drop bomb. ctrl+c to quit")
+    readline.cursorTo(process.stdout, 1, 23);
+    process.stdout.write(colorTypes.fgWhite + "[w s a d] or [↓ ↑ ← →] to move. [b] to drop bomb. ctrl+c to quit")
 
 
 
